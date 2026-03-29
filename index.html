@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+ <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script>emailjs.init('fMs7HnU2rKL5w8Isz');</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RoomSync — Meeting Room Booking</title>
@@ -742,7 +744,29 @@ function confirmBooking() {
 
   closeModal();
   const inv = invitees.length ? ` + ${invitees.length} invite${invitees.length>1?'s':''} sent 📨` : '';
-  showToast(`Booked! Confirmation sent to ${email} 📧${inv}`);
+  emailjs.send('YOUR_SERVICE_ID', 'YOUR_TEMPLATE_ID', {
+  booker_name: name,
+  booker_email: email,
+  room_name: room.name,
+  date: date,
+  time: time,
+  duration: duration,
+  attendees: attendees,
+  subject: subject || '(No subject)',
+}).then(() => {
+  showToast(`Booking confirmed! Email sent to ${email} 📧`);
+});
+
+// Send to each invitee too
+invitees.forEach(invEmail => {
+  emailjs.send('service_vebob44', 'template_4dd4zxf', {
+    invitee_email: invEmail,
+    booker_name: name,
+    room_name: room.name,
+    date: date,
+    time: time,
+  });
+});
   renderRooms(rooms);
   ['bookingName','bookingEmail','bookingSubject','bookingNotes'].forEach(id => document.getElementById(id).value = '');
 }
