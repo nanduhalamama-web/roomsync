@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RoomSync — Meeting Room Booking</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0f1117;
+    --paper: #f5f2eb;
+    --cream: #ede9df;
+    --accent: #c8522a;
+    --accent-light: #f2ddd5;
+    --muted: #7a7670;
+    --green: #2d6a4f;
+    --green-light: #d8f3e3;
+    --red: #c1121f;
+    --red-light: #fde8e9;
+    --border: #d8d3c8;
+    --shadow: 0 2px 16px rgba(15,17,23,0.08);
+    --shadow-lg: 0 8px 40px rgba(15,17,23,0.14);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--paper); color: var(--ink); min-height: 100vh; overflow-x: hidden; }
+
+  /* ─── HEADER ─── */
+  header { background: var(--ink); color: var(--paper); display: flex; align-items: center; justify-content: space-between; padding: 0 40px; height: 64px; position: sticky; top: 0; z-index: 100; }
+  .logo { font-family: 'DM Serif Display', serif; font-size: 1.5rem; letter-spacing: -0.5px; }
+  .logo span { color: var(--accent); font-style: italic; }
+  nav { display: flex; gap: 8px; align-items: center; }
+  nav button { background: none; border: none; color: var(--paper); font-family: 'DM Sans', sans-serif; font-size: 0.875rem; font-weight: 500; padding: 8px 16px; border-radius: 6px; cursor: pointer; transition: background 0.2s; }
+  nav button:hover { background: rgba(245,242,235,0.12); }
+  nav button.active { background: var(--accent); color: white; }
+  .admin-badge { background: var(--accent); color: white; font-size: 0.7rem; font-weight: 600; padding: 2px 8px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px; }
+  #logoutBtn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: var(--paper); font-size: 0.78rem; padding: 6px 14px; border-radius: 6px; cursor: pointer; display: none; font-family: 'DM Sans', sans-serif; }
+  #logoutBtn:hover { background: rgba(255,255,255,0.18); }
+  .nav-divider { width: 1px; height: 20px; background: rgba(255,255,255,0.15); margin: 0 4px; }
+
+  /* ─── MAIN ─── */
+  main { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+  .page { display: none; animation: fadeIn 0.3s ease; }
+  .page.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ─── HERO BAR ─── */
+  .hero-bar { background: var(--ink); color: var(--paper); border-radius: 16px; padding: 32px 40px; display: flex; align-items: center; gap: 32px; margin-bottom: 32px; flex-wrap: wrap; }
+  .hero-bar h1 { font-family: 'DM Serif Display', serif; font-size: 1.8rem; flex: 1; min-width: 200px; }
+  .hero-bar h1 em { color: var(--accent); font-style: italic; }
+  .date-picker-group { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .date-picker-group label { color: var(--muted); font-size: 0.8rem; font-weight: 500; display: block; margin-bottom: 4px; }
+  .date-picker-group input, .date-picker-group select { background: rgba(245,242,235,0.1); border: 1px solid rgba(245,242,235,0.2); color: var(--paper); padding: 10px 14px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; outline: none; cursor: pointer; }
+  .date-picker-group input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); }
+  .btn-search { background: var(--accent); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: background 0.2s, transform 0.1s; white-space: nowrap; margin-top: 18px; }
+  .btn-search:hover { background: #b5471f; transform: translateY(-1px); }
+
+  /* ─── ROOM GRID ─── */
+  .section-title { font-family: 'DM Serif Display', serif; font-size: 1.4rem; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; }
+  .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .rooms-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; margin-bottom: 48px; }
+  .room-card { background: white; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; transition: transform 0.2s, box-shadow 0.2s; box-shadow: var(--shadow); }
+  .room-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+  .room-card-header { padding: 20px 20px 0; display: flex; justify-content: space-between; align-items: flex-start; }
+  .room-name { font-family: 'DM Serif Display', serif; font-size: 1.2rem; }
+  .room-floor { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+  .status-badge { font-size: 0.72rem; font-weight: 600; padding: 4px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.4px; }
+  .status-available { background: var(--green-light); color: var(--green); }
+  .status-occupied { background: var(--red-light); color: var(--red); }
+  .status-partial { background: #fff3cd; color: #856404; }
+  .room-card-body { padding: 16px 20px; }
+  .room-meta { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+  .room-meta-item { display: flex; align-items: center; gap: 5px; font-size: 0.82rem; color: var(--muted); }
+  .room-meta-item svg { width: 14px; height: 14px; }
+  .amenity-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+  .chip { background: var(--cream); border: 1px solid var(--border); font-size: 0.72rem; padding: 3px 10px; border-radius: 20px; color: var(--muted); }
+  .time-slots { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 16px; }
+  .slot { font-size: 0.7rem; padding: 4px 8px; border-radius: 6px; font-weight: 500; }
+  .slot-free { background: var(--green-light); color: var(--green); }
+  .slot-busy { background: var(--red-light); color: var(--red); }
+  .room-card-footer { padding: 0 20px 20px; }
+  .btn-book { width: 100%; background: var(--ink); color: white; border: none; padding: 11px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 0.875rem; cursor: pointer; transition: background 0.2s; }
+  .btn-book:hover { background: var(--accent); }
+  .btn-book:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; }
+
+  /* ─── MODALS ─── */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15,17,23,0.6); backdrop-filter: blur(4px); z-index: 200; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: white; border-radius: 20px; width: 100%; max-width: 520px; box-shadow: var(--shadow-lg); overflow: hidden; animation: modalIn 0.25s ease; max-height: 90vh; overflow-y: auto; }
+  .modal-sm { max-width: 400px; }
+  @keyframes modalIn { from { opacity: 0; transform: scale(0.96) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+  .modal-header { background: var(--ink); color: var(--paper); padding: 24px 28px 20px; }
+  .modal-header h2 { font-family: 'DM Serif Display', serif; font-size: 1.4rem; }
+  .modal-header p { color: var(--muted); font-size: 0.85rem; margin-top: 4px; }
+  .modal-body { padding: 28px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-group { margin-bottom: 18px; }
+  .form-group label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .form-group input, .form-group select, .form-group textarea { width: 100%; border: 1.5px solid var(--border); border-radius: 8px; padding: 11px 14px; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; color: var(--ink); background: white; outline: none; transition: border-color 0.2s; }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--accent); }
+  .form-group textarea { resize: vertical; min-height: 80px; }
+  .modal-footer { padding: 0 28px 28px; display: flex; gap: 12px; justify-content: flex-end; }
+  .btn-cancel { background: var(--cream); border: 1px solid var(--border); color: var(--ink); padding: 11px 22px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 0.875rem; cursor: pointer; transition: background 0.2s; }
+  .btn-cancel:hover { background: var(--border); }
+  .btn-confirm { background: var(--accent); color: white; border: none; padding: 11px 22px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 0.875rem; cursor: pointer; transition: background 0.2s; }
+  .btn-confirm:hover { background: #b5471f; }
+
+  /* ─── ADMIN LOGIN MODAL ─── */
+  .login-icon { text-align: center; font-size: 2.5rem; margin-bottom: 8px; }
+  .login-error { background: var(--red-light); color: var(--red); border-radius: 8px; padding: 10px 14px; font-size: 0.83rem; margin-bottom: 16px; display: none; }
+  .login-error.show { display: block; }
+  .password-wrap { position: relative; }
+  .password-wrap input { padding-right: 44px; }
+  .toggle-pw { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--muted); font-size: 1rem; padding: 0; }
+
+  /* ─── MY BOOKINGS ─── */
+  .bookings-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+  .bookings-header h1 { font-family: 'DM Serif Display', serif; font-size: 1.8rem; }
+  .filter-tabs { display: flex; gap: 4px; background: var(--cream); border-radius: 8px; padding: 4px; }
+  .filter-tab { background: none; border: none; padding: 7px 16px; border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 0.85rem; font-weight: 500; cursor: pointer; color: var(--muted); transition: all 0.2s; }
+  .filter-tab.active { background: white; color: var(--ink); box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+  .booking-list { display: flex; flex-direction: column; gap: 12px; }
+  .booking-item { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; display: flex; align-items: center; gap: 20px; box-shadow: var(--shadow); transition: transform 0.2s; }
+  .booking-item:hover { transform: translateX(4px); }
+  .booking-date-block { background: var(--ink); color: white; border-radius: 10px; padding: 10px 14px; text-align: center; min-width: 64px; font-family: 'DM Serif Display', serif; }
+  .booking-date-block .day { font-size: 1.6rem; line-height: 1; }
+  .booking-date-block .month { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+  .booking-info { flex: 1; }
+  .booking-room { font-weight: 600; font-size: 1rem; }
+  .booking-detail { font-size: 0.82rem; color: var(--muted); margin-top: 3px; }
+  .booking-status { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+  .btn-cancel-booking { background: var(--red-light); color: var(--red); border: none; padding: 7px 14px; border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: background 0.2s; white-space: nowrap; }
+  .btn-cancel-booking:hover { background: #fccccf; }
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty-state .empty-icon { font-size: 3rem; margin-bottom: 16px; }
+
+  /* ─── ADMIN ─── */
+  .admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 768px) { .admin-grid { grid-template-columns: 1fr; } .form-row { grid-template-columns: 1fr; } }
+  .admin-card { background: white; border: 1px solid var(--border); border-radius: 14px; padding: 24px; box-shadow: var(--shadow); }
+  .admin-card h3 { font-family: 'DM Serif Display', serif; font-size: 1.2rem; margin-bottom: 20px; }
+  .admin-full { grid-column: 1 / -1; }
+  .stat-row { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+  .stat-box { flex: 1; min-width: 100px; background: var(--cream); border-radius: 10px; padding: 16px; text-align: center; }
+  .stat-box .stat-num { font-family: 'DM Serif Display', serif; font-size: 2rem; color: var(--accent); }
+  .stat-box .stat-label { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+  .admin-room-list { display: flex; flex-direction: column; gap: 10px; }
+  .admin-room-item { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--cream); }
+  .admin-room-item .room-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+  .admin-room-item .room-dot.inactive { background: var(--red); }
+  .admin-room-info { flex: 1; }
+  .admin-room-info strong { font-size: 0.9rem; }
+  .admin-room-info small { color: var(--muted); font-size: 0.78rem; display: block; }
+  .btn-admin-action { background: none; border: 1px solid var(--border); color: var(--muted); padding: 5px 12px; border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 0.78rem; cursor: pointer; transition: all 0.2s; }
+  .btn-admin-action:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-add-room { width: 100%; background: var(--ink); color: white; border: none; padding: 12px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 0.875rem; cursor: pointer; margin-top: 16px; transition: background 0.2s; }
+  .btn-add-room:hover { background: var(--accent); }
+  .bookings-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  .bookings-table th { text-align: left; padding: 10px 12px; background: var(--cream); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 600; }
+  .bookings-table td { padding: 12px 12px; border-bottom: 1px solid var(--border); }
+  .bookings-table tr:last-child td { border-bottom: none; }
+  .bookings-table tr:hover td { background: var(--paper); }
+
+  /* ─── SETTINGS ─── */
+  .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start; }
+  @media (max-width: 768px) { .settings-grid { grid-template-columns: 1fr; } }
+  .settings-label { font-size: 0.78rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; }
+  .day-toggles { display: flex; flex-wrap: wrap; gap: 8px; }
+  .day-btn { padding: 8px 14px; border-radius: 8px; border: 1.5px solid var(--border); background: white; font-family: 'DM Sans', sans-serif; font-size: 0.82rem; font-weight: 600; cursor: pointer; color: var(--muted); transition: all 0.2s; }
+  .day-btn.on { background: var(--ink); border-color: var(--ink); color: white; }
+  .day-btn:hover:not(.on) { border-color: var(--accent); color: var(--accent); }
+  .time-range-row { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+  .time-sep { font-size: 1.2rem; color: var(--muted); padding-bottom: 10px; }
+  .settings-preview { margin-top: 16px; background: var(--cream); border-radius: 10px; padding: 12px 16px; font-size: 0.83rem; color: var(--ink); border: 1px solid var(--border); }
+  .settings-preview strong { color: var(--accent); }
+
+  /* ─── TOAST ─── */
+  .toast { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--ink); color: white; padding: 14px 24px; border-radius: 50px; font-size: 0.875rem; font-weight: 500; box-shadow: var(--shadow-lg); z-index: 500; transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s; opacity: 0; white-space: nowrap; }
+  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+  .toast.success::before { content: '✓  '; color: #6ee7b7; }
+  .toast.error::before { content: '✕  '; color: #fca5a5; }
+  .toast.info::before { content: 'ℹ  '; color: #93c5fd; }
+
+  /* ─── MISC ─── */
+  .notify-box { background: #eef7f2; border: 1px solid #a7d7bc; border-radius: 10px; padding: 14px 18px; margin-bottom: 18px; font-size: 0.83rem; color: var(--green); display: flex; align-items: center; gap: 10px; }
+  .invite-box { min-height: 44px; border: 1.5px solid var(--border); border-radius: 8px; padding: 6px 10px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; background: white; cursor: text; transition: border-color 0.2s; }
+  .invite-box:focus-within { border-color: var(--accent); }
+  .invite-tag { background: var(--accent-light); color: var(--accent); border: 1px solid #e8c4b8; border-radius: 20px; padding: 3px 10px 3px 12px; font-size: 0.78rem; font-weight: 500; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .invite-tag button { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 0.9rem; line-height: 1; padding: 0; opacity: 0.7; }
+  .invite-tag button:hover { opacity: 1; }
+  #inviteInput { border: none; outline: none; font-family: 'DM Sans', sans-serif; font-size: 0.88rem; color: var(--ink); flex: 1; min-width: 180px; background: transparent; padding: 4px 2px; }
+</style>
+</head>
+<body>
+
+<!-- ─── HEADER ─── -->
+<header>
+  <div class="logo">Room<span>Sync</span></div>
+  <nav>
+    <button class="active" onclick="showPage('availability')">Availability</button>
+    <button onclick="showPage('mybookings')">My Bookings</button>
+    <div class="nav-divider"></div>
+    <button id="adminNavBtn" onclick="handleAdminClick()">Admin <span class="admin-badge">Panel</span></button>
+    <button id="logoutBtn" onclick="adminLogout()">🔒 Logout</button>
+  </nav>
+</header>
+
+<div class="toast" id="toast"></div>
+
+<!-- ════════════════════════════════════════
+     ADMIN LOGIN MODAL
+════════════════════════════════════════ -->
+<div class="modal-overlay" id="loginModal">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h2>Admin Login</h2>
+      <p>Enter your credentials to access the panel.</p>
+    </div>
+    <div class="modal-body">
+      <div class="login-icon">🔐</div>
+      <div class="login-error" id="loginError">Incorrect username or password.</div>
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="loginUser" placeholder="admin" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <div class="password-wrap">
+          <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter') doLogin()">
+          <button class="toggle-pw" onclick="togglePw()" title="Show/hide password">👁</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="document.getElementById('loginModal').classList.remove('open')">Cancel</button>
+      <button class="btn-confirm" onclick="doLogin()">Login</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     BOOKING MODAL
+════════════════════════════════════════ -->
+<div class="modal-overlay" id="bookingModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalRoomName">Book a Room</h2>
+      <p id="modalRoomSub">Fill in the details below to confirm your reservation.</p>
+    </div>
+    <div class="modal-body">
+      <div class="notify-box">📧 A confirmation email will be sent to you automatically.</div>
+      <div class="form-group">
+        <label>Your Name</label>
+        <input type="text" id="bookingName" placeholder="e.g. Sarah Ahmed">
+      </div>
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" id="bookingEmail" placeholder="sarah@company.com">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Date</label>
+          <input type="date" id="bookingDate">
+        </div>
+        <div class="form-group">
+          <label>Duration</label>
+          <select id="bookingDuration">
+            <option value="30">30 minutes</option>
+            <option value="60" selected>1 hour</option>
+            <option value="90">1.5 hours</option>
+            <option value="120">2 hours</option>
+            <option value="150">2.5 hours</option>
+            <option value="180">3 hours</option>
+            <option value="210">3.5 hours</option>
+            <option value="240">4 hours</option>
+            <option value="270">4.5 hours</option>
+            <option value="300">5 hours</option>
+            <option value="330">5.5 hours</option>
+            <option value="360">6 hours</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Available Time</label>
+          <select id="bookingTime"></select>
+        </div>
+        <div class="form-group">
+          <label>Attendees</label>
+          <input type="number" id="bookingAttendees" min="1" max="30" value="4">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Meeting Subject <span style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(optional)</span></label>
+        <input type="text" id="bookingSubject" placeholder="e.g. Q2 Planning Session">
+      </div>
+      <div class="form-group">
+        <label>Notes <span style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(optional)</span></label>
+        <textarea id="bookingNotes" placeholder="Anything the team should know..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Invite Others <span style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(optional)</span></label>
+        <div class="invite-box" id="inviteBox" onclick="document.getElementById('inviteInput').focus()">
+          <div class="invite-tags" id="inviteTags"></div>
+          <input type="email" id="inviteInput" placeholder="Add email and press Enter or comma…" autocomplete="off">
+        </div>
+        <div style="font-size:0.75rem;color:var(--muted);margin-top:5px">Each person will receive a notification email.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-confirm" onclick="confirmBooking()">Confirm Booking</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     CANCEL BOOKING MODAL
+════════════════════════════════════════ -->
+<div class="modal-overlay" id="cancelModal">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h2>Cancel Booking?</h2>
+      <p>This action cannot be undone.</p>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--muted);font-size:0.9rem;">Are you sure you want to cancel <strong id="cancelBookingLabel"></strong>? A cancellation notice will be sent to <span id="cancelBookingEmail"></span>.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="document.getElementById('cancelModal').classList.remove('open')">Keep It</button>
+      <button class="btn-confirm" style="background:var(--red)" onclick="executeCancelBooking()">Yes, Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     ADD ROOM MODAL
+════════════════════════════════════════ -->
+<div class="modal-overlay" id="addRoomModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Add New Room</h2>
+      <p>Configure the room details and amenities.</p>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Room Name</label>
+          <input type="text" id="newRoomName" placeholder="e.g. Boardroom Alpha">
+        </div>
+        <div class="form-group">
+          <label>Floor / Location <span style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(optional)</span></label>
+          <input type="text" id="newRoomFloor" placeholder="e.g. 3rd Floor">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Capacity</label>
+          <input type="number" id="newRoomCapacity" min="1" max="100" value="10">
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select id="newRoomStatus">
+            <option value="available">Available</option>
+            <option value="maintenance">Under Maintenance</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Amenities <span style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(comma-separated)</span></label>
+        <input type="text" id="newRoomAmenities" placeholder="Projector, Whiteboard, Video Call">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="document.getElementById('addRoomModal').classList.remove('open')">Cancel</button>
+      <button class="btn-confirm" onclick="addRoom()">Add Room</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     MAIN CONTENT
+════════════════════════════════════════ -->
+<main>
+
+  <!-- AVAILABILITY PAGE -->
+  <div class="page active" id="page-availability">
+    <div class="hero-bar">
+      <div>
+        <h1>Book Your <em>Meeting</em> Room</h1>
+        <p style="color:var(--muted);font-size:0.85rem;margin-top:6px;">Live availability · Instant booking</p>
+      </div>
+      <div class="date-picker-group">
+        <div>
+          <label>Date</label>
+          <input type="date" id="filterDate">
+        </div>
+        <div>
+          <label>Time</label>
+          <select id="filterTime">
+            <option value="">Any time</option>
+            <option>Morning (8–12)</option>
+            <option>Afternoon (12–17)</option>
+          </select>
+        </div>
+        <div>
+          <label>Capacity</label>
+          <select id="filterCapacity">
+            <option value="">Any size</option>
+            <option value="4">1–4 people</option>
+            <option value="8">5–8 people</option>
+            <option value="15">9–15 people</option>
+            <option value="30">16+ people</option>
+          </select>
+        </div>
+        <button class="btn-search" onclick="filterRooms()">Search Rooms</button>
+      </div>
+    </div>
+    <div class="section-title">All Rooms</div>
+    <div class="rooms-grid" id="roomsGrid"></div>
+  </div>
+
+  <!-- MY BOOKINGS PAGE -->
+  <div class="page" id="page-mybookings">
+    <div class="bookings-header">
+      <h1>My Bookings</h1>
+      <div class="filter-tabs">
+        <button class="filter-tab active" onclick="filterMyBookings('all', this)">All</button>
+        <button class="filter-tab" onclick="filterMyBookings('upcoming', this)">Upcoming</button>
+        <button class="filter-tab" onclick="filterMyBookings('past', this)">Past</button>
+      </div>
+    </div>
+    <div class="booking-list" id="bookingList"></div>
+  </div>
+
+  <!-- ADMIN PAGE -->
+  <div class="page" id="page-admin">
+    <h1 style="font-family:'DM Serif Display',serif;font-size:1.8rem;margin-bottom:24px;">Admin <span style="color:var(--accent)">Panel</span></h1>
+    <div class="stat-row">
+      <div class="stat-box"><div class="stat-num" id="statRooms">0</div><div class="stat-label">Total Rooms</div></div>
+      <div class="stat-box"><div class="stat-num" id="statBookings">0</div><div class="stat-label">Bookings Today</div></div>
+      <div class="stat-box"><div class="stat-num" id="statOccupancy">0%</div><div class="stat-label">Occupancy Rate</div></div>
+      <div class="stat-box"><div class="stat-num" id="statActive">0</div><div class="stat-label">Active Rooms</div></div>
+    </div>
+    <div class="admin-grid">
+      <!-- Manage Rooms -->
+      <div class="admin-card">
+        <h3>Manage Rooms</h3>
+        <div class="admin-room-list" id="adminRoomList"></div>
+        <button class="btn-add-room" onclick="document.getElementById('addRoomModal').classList.add('open')">+ Add New Room</button>
+      </div>
+      <!-- Working Hours -->
+      <div class="admin-card">
+        <h3>Working Hours &amp; Days</h3>
+        <div class="settings-grid">
+          <div>
+            <div class="settings-label">Working Days</div>
+            <div class="day-toggles" id="dayToggles"></div>
+          </div>
+          <div>
+            <div class="settings-label">Office Hours</div>
+            <div class="time-range-row">
+              <div class="form-group" style="margin-bottom:0">
+                <label>Opens at</label>
+                <select id="settingStartTime" onchange="saveWorkingHours()"></select>
+              </div>
+              <span class="time-sep">→</span>
+              <div class="form-group" style="margin-bottom:0">
+                <label>Closes at</label>
+                <select id="settingEndTime" onchange="saveWorkingHours()"></select>
+              </div>
+            </div>
+            <div class="settings-preview" id="settingsPreview"></div>
+          </div>
+        </div>
+      </div>
+      <!-- All Bookings -->
+      <div class="admin-card admin-full">
+        <h3>All Bookings</h3>
+        <div style="overflow-x:auto">
+          <table class="bookings-table">
+            <thead>
+              <tr><th>Room</th><th>Booked By</th><th>Date</th><th>Time</th><th>Duration</th><th>Subject</th><th>Invitees</th><th>Action</th></tr>
+            </thead>
+            <tbody id="adminBookingsTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ════════════════════════════════════════
+// ADMIN AUTH
+// ════════════════════════════════════════
+// ⚠️  Change these credentials before deploying!
+const ADMIN_CREDENTIALS = { username: 'admin', password: 'admin123' };
+
+let isAdminLoggedIn = sessionStorage.getItem('roomsync_admin') === 'true';
+
+function handleAdminClick() {
+  if (isAdminLoggedIn) { showPage('admin'); }
+  else { document.getElementById('loginModal').classList.add('open'); document.getElementById('loginUser').focus(); }
+}
+
+function doLogin() {
+  const user = document.getElementById('loginUser').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  const err  = document.getElementById('loginError');
+  if (user === ADMIN_CREDENTIALS.username && pass === ADMIN_CREDENTIALS.password) {
+    isAdminLoggedIn = true;
+    sessionStorage.setItem('roomsync_admin', 'true');
+    document.getElementById('loginModal').classList.remove('open');
+    document.getElementById('loginUser').value = '';
+    document.getElementById('loginPass').value = '';
+    err.classList.remove('show');
+    document.getElementById('logoutBtn').style.display = 'inline-block';
+    showPage('admin');
+    showToast('Welcome back, Admin 👋');
+  } else {
+    err.classList.add('show');
+    document.getElementById('loginPass').value = '';
+  }
+}
+
+function adminLogout() {
+  isAdminLoggedIn = false;
+  sessionStorage.removeItem('roomsync_admin');
+  document.getElementById('logoutBtn').style.display = 'none';
+  showPage('availability');
+  showToast('Logged out', 'info');
+}
+
+function togglePw() {
+  const inp = document.getElementById('loginPass');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+// Restore login state on page load
+if (isAdminLoggedIn) document.getElementById('logoutBtn').style.display = 'inline-block';
+
+// ════════════════════════════════════════
+// DATA
+// ════════════════════════════════════════
+let rooms = [
+  { id: 1, name: 'The Boardroom',    floor: '5th Floor · East Wing',  capacity: 20, amenities: ['Projector','Video Call','Whiteboard','Coffee Station'], active: true  },
+  { id: 2, name: 'Focus Pod A',      floor: '2nd Floor · Quiet Zone', capacity: 4,  amenities: ['Monitor','Whiteboard'], active: true },
+  { id: 3, name: 'Innovation Lab',   floor: '3rd Floor · North Wing', capacity: 12, amenities: ['Dual Projectors','Whiteboard','Video Call','Standing Desks'], active: true },
+  { id: 4, name: 'Skyline Suite',    floor: '6th Floor · Rooftop',    capacity: 30, amenities: ['Projector','Video Call','Catering Ready','Panoramic View'], active: true },
+  { id: 5, name: 'Huddle Room B',    floor: '2nd Floor · West Wing',  capacity: 6,  amenities: ['Smart TV','Video Call'], active: true },
+  { id: 6, name: 'Executive Lounge', floor: '5th Floor · Private',    capacity: 8,  amenities: ['Projector','Coffee Machine','Video Call','Premium Seating'], active: false },
+];
+
+let bookings = [
+  { id: 1, roomId: 1, roomName: 'The Boardroom',  name: 'Ahmed Al-Rashid', email: 'ahmed@company.com', date: getFutureDate(1), time: '10:00', duration: 60,  subject: 'Q3 Strategy Review',    notes: '',                       attendees: 12, invitees: [] },
+  { id: 2, roomId: 3, roomName: 'Innovation Lab', name: 'Sara Mohammed',   email: 'sara@company.com',  date: getFutureDate(2), time: '14:00', duration: 90,  subject: 'Product Design Sprint', notes: 'Please bring sketch pads', attendees: 8,  invitees: ['design@company.com'] },
+  { id: 3, roomId: 2, roomName: 'Focus Pod A',    name: 'Khalid Ibrahim',  email: 'khalid@company.com',date: getPastDate(1),   time: '09:00', duration: 30,  subject: '1-on-1 Check-in',       notes: '',                       attendees: 2,  invitees: [] },
+];
+
+let pendingRoomId = null;
+let pendingCancelId = null;
+let nextBookingId = 10;
+let invitees = [];
+
+// ════════════════════════════════════════
+// WORKING HOURS
+// ════════════════════════════════════════
+let workingDays  = { Sun: false, Mon: true, Tue: true, Wed: true, Thu: true, Fri: true, Sat: false };
+let workingHours = { start: '08:00', end: '18:00' };
+
+// ════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════
+function getFutureDate(d) { const x = new Date(); x.setDate(x.getDate()+d); return x.toISOString().split('T')[0]; }
+function getPastDate(d)   { const x = new Date(); x.setDate(x.getDate()-d); return x.toISOString().split('T')[0]; }
+function isUpcoming(ds)   { return new Date(ds+'T23:59:59') >= new Date(); }
+function formatDate(ds)   { return new Date(ds+'T00:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'}); }
+function endTime(t, dur)  { const [h,m] = t.split(':').map(Number); const tot = h*60+m+dur; return `${String(Math.floor(tot/60)).padStart(2,'0')}:${String(tot%60).padStart(2,'0')}`; }
+
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+// ════════════════════════════════════════
+// NAVIGATION
+// ════════════════════════════════════════
+function showPage(id) {
+  if (id === 'admin' && !isAdminLoggedIn) { handleAdminClick(); return; }
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  document.querySelectorAll('nav button:not(#logoutBtn)').forEach((b, i) => {
+    b.classList.toggle('active', ['availability','mybookings','admin'][i] === id);
+  });
+  if (id === 'mybookings') renderBookingList('all');
+  if (id === 'admin')      renderAdmin();
+}
+
+// ════════════════════════════════════════
+// ROOM STATUS & SLOTS
+// ════════════════════════════════════════
+function getRoomStatus(roomId) {
+  const today = new Date().toISOString().split('T')[0];
+  const tb = bookings.filter(b => b.roomId === roomId && b.date === today);
+  if (tb.length === 0) return 'available';
+  if (tb.length >= 3)  return 'occupied';
+  return 'partial';
+}
+
+function getSlots(roomId) {
+  const today = new Date().toISOString().split('T')[0];
+  const [sh, sm] = workingHours.start.split(':').map(Number);
+  const [eh, em] = workingHours.end.split(':').map(Number);
+  const times = [];
+  for (let t = sh*60+sm; t < eh*60+em; t += 30) {
+    times.push(`${String(Math.floor(t/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`);
+  }
+  return times.map(t => ({
+    time: t,
+    busy: bookings.some(b => {
+      if (b.roomId !== roomId || b.date !== today) return false;
+      const [bh,bm] = b.time.split(':').map(Number);
+      const [th,tm] = t.split(':').map(Number);
+      const bStart = bh*60+bm, tMin = th*60+tm;
+      return tMin >= bStart && tMin < bStart + b.duration;
+    })
+  }));
+}
+
+// ════════════════════════════════════════
+// RENDER ROOMS
+// ════════════════════════════════════════
+function renderRooms(list) {
+  const grid = document.getElementById('roomsGrid');
+  const active = list.filter(r => r.active);
+  if (!active.length) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🚪</div><p>No rooms currently available.</p></div>`;
+    return;
+  }
+  grid.innerHTML = active.map(r => {
+    const status = getRoomStatus(r.id);
+    const label  = status === 'available' ? 'Available' : status === 'partial' ? 'Partial' : 'Fully Booked';
+    const cls    = status === 'available' ? 'status-available' : status === 'partial' ? 'status-partial' : 'status-occupied';
+    const slots  = getSlots(r.id);
+    return `
+    <div class="room-card">
+      <div class="room-card-header">
+        <div><div class="room-name">${r.name}</div><div class="room-floor">${r.floor || ''}</div></div>
+        <span class="status-badge ${cls}">${label}</span>
+      </div>
+      <div class="room-card-body">
+        <div class="room-meta">
+          <span class="room-meta-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Up to ${r.capacity}
+          </span>
+        </div>
+        <div class="amenity-chips">${r.amenities.map(a=>`<span class="chip">${a}</span>`).join('')}</div>
+        <div style="font-size:0.75rem;color:var(--muted);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Today's slots</div>
+        <div class="time-slots">${slots.map(s=>`<span class="slot ${s.busy?'slot-busy':'slot-free'}">${s.time}</span>`).join('')}</div>
+      </div>
+      <div class="room-card-footer">
+        <button class="btn-book" ${status==='occupied'?'disabled':''} onclick="openBookingModal(${r.id})">
+          ${status==='occupied'?'Fully Booked':'Book Now'}
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterRooms() { renderRooms(rooms); showToast('Showing all available rooms', 'info'); }
+
+// ════════════════════════════════════════
+// BOOKING MODAL
+// ════════════════════════════════════════
+function getAvailableSlots(roomId, date) {
+  const [sh,sm] = workingHours.start.split(':').map(Number);
+  const [eh,em] = workingHours.end.split(':').map(Number);
+  const slots = [];
+  for (let t = sh*60+sm; t < eh*60+em; t += 30) {
+    slots.push(`${String(Math.floor(t/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`);
+  }
+  const busy = new Set();
+  bookings.filter(b => b.roomId===roomId && b.date===date).forEach(b => {
+    const [bh,bm] = b.time.split(':').map(Number);
+    const bStart = bh*60+bm;
+    for (let t = bStart; t < bStart+b.duration; t += 30) {
+      busy.add(`${String(Math.floor(t/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`);
+    }
+  });
+  return slots.filter(s => !busy.has(s));
+}
+
+function populateTimeDropdown(roomId, date) {
+  const sel = document.getElementById('bookingTime');
+  const avail = getAvailableSlots(roomId, date);
+  sel.innerHTML = avail.length
+    ? avail.map(t => `<option value="${t}">${t}</option>`).join('')
+    : '<option value="">No slots available</option>';
+}
+
+function openBookingModal(roomId) {
+  pendingRoomId = roomId;
+  const room = rooms.find(r => r.id === roomId);
+  document.getElementById('modalRoomName').textContent = room.name;
+  document.getElementById('modalRoomSub').textContent = (room.floor||'No location set') + ' · Up to ' + room.capacity + ' people';
+  const di = document.getElementById('bookingDate');
+  di.value = new Date().toISOString().split('T')[0];
+  populateTimeDropdown(roomId, di.value);
+  di.onchange = () => populateTimeDropdown(roomId, di.value);
+  document.getElementById('bookingModal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('bookingModal').classList.remove('open');
+  pendingRoomId = null;
+  invitees = [];
+  document.getElementById('inviteTags').innerHTML = '';
+  document.getElementById('inviteInput').value = '';
+}
+
+function confirmBooking() {
+  const name     = document.getElementById('bookingName').value.trim();
+  const email    = document.getElementById('bookingEmail').value.trim();
+  const date     = document.getElementById('bookingDate').value;
+  const time     = document.getElementById('bookingTime').value;
+  const duration = parseInt(document.getElementById('bookingDuration').value);
+  const attendees= document.getElementById('bookingAttendees').value;
+  const subject  = document.getElementById('bookingSubject').value.trim();
+  const notes    = document.getElementById('bookingNotes').value.trim();
+
+  if (!name || !email || !date) { showToast('Please fill in all required fields', 'error'); return; }
+  if (!email.includes('@'))     { showToast('Please enter a valid email', 'error'); return; }
+  if (!time)                    { showToast('No available time slots for this date', 'error'); return; }
+
+  const room = rooms.find(r => r.id === pendingRoomId);
+  bookings.push({ id: nextBookingId++, roomId: pendingRoomId, roomName: room.name, name, email, date, time, duration, subject, notes, attendees: parseInt(attendees), invitees: [...invitees] });
+
+  closeModal();
+  const inv = invitees.length ? ` + ${invitees.length} invite${invitees.length>1?'s':''} sent 📨` : '';
+  showToast(`Booked! Confirmation sent to ${email} 📧${inv}`);
+  renderRooms(rooms);
+  ['bookingName','bookingEmail','bookingSubject','bookingNotes'].forEach(id => document.getElementById(id).value = '');
+}
+
+// ════════════════════════════════════════
+// INVITE TAGS
+// ════════════════════════════════════════
+function addInvitee(em) {
+  em = em.trim().toLowerCase();
+  if (!em || !em.includes('@')) return;
+  if (invitees.includes(em)) { showToast('Already added', 'info'); return; }
+  invitees.push(em);
+  renderInviteTags();
+}
+function removeInvitee(em) { invitees = invitees.filter(e => e !== em); renderInviteTags(); }
+function renderInviteTags() {
+  document.getElementById('inviteTags').innerHTML = invitees.map(e =>
+    `<span class="invite-tag">${e}<button onclick="removeInvitee('${e}')" title="Remove">×</button></span>`
+  ).join('');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = document.getElementById('inviteInput');
+  inp.addEventListener('keydown', e => {
+    if (e.key==='Enter'||e.key===',') { e.preventDefault(); addInvitee(inp.value.replace(',','')); inp.value=''; }
+    else if (e.key==='Backspace' && inp.value==='' && invitees.length) removeInvitee(invitees[invitees.length-1]);
+  });
+  inp.addEventListener('blur', () => { if (inp.value.trim()) { addInvitee(inp.value); inp.value=''; } });
+});
+
+// ════════════════════════════════════════
+// MY BOOKINGS
+// ════════════════════════════════════════
+function renderBookingList(filter) {
+  const list = document.getElementById('bookingList');
+  let items = bookings;
+  if (filter==='upcoming') items = bookings.filter(b => isUpcoming(b.date));
+  if (filter==='past')     items = bookings.filter(b => !isUpcoming(b.date));
+  if (!items.length) { list.innerHTML=`<div class="empty-state"><div class="empty-icon">📭</div><p>No bookings found.</p></div>`; return; }
+  const M = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  list.innerHTML = items.map(b => {
+    const d = new Date(b.date+'T00:00:00'), up = isUpcoming(b.date);
+    return `
+    <div class="booking-item">
+      <div class="booking-date-block"><div class="day">${d.getDate()}</div><div class="month">${M[d.getMonth()]}</div></div>
+      <div class="booking-info">
+        <div class="booking-room">${b.roomName}</div>
+        <div class="booking-detail">${b.subject||'(No subject)'} · ${b.time} – ${endTime(b.time,b.duration)} · ${b.attendees} attendees${b.invitees?.length?` · <span style="color:var(--accent)">+${b.invitees.length} invited</span>`:''}</div>
+        <div class="booking-detail" style="margin-top:2px">${b.name} · ${b.email}</div>
+      </div>
+      <div class="booking-status">
+        <span class="status-badge ${up?'status-available':'status-occupied'}">${up?'Upcoming':'Past'}</span>
+        ${up?`<button class="btn-cancel-booking" onclick="promptCancelBooking(${b.id})">Cancel</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterMyBookings(f, btn) {
+  document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderBookingList(f);
+}
+
+function promptCancelBooking(id) {
+  pendingCancelId = id;
+  const b = bookings.find(x => x.id===id);
+  document.getElementById('cancelBookingLabel').textContent = b.roomName + ' on ' + formatDate(b.date);
+  document.getElementById('cancelBookingEmail').textContent = b.email;
+  document.getElementById('cancelModal').classList.add('open');
+}
+
+function executeCancelBooking() {
+  const b = bookings.find(x => x.id===pendingCancelId);
+  bookings = bookings.filter(x => x.id!==pendingCancelId);
+  document.getElementById('cancelModal').classList.remove('open');
+  renderBookingList('all');
+  renderRooms(rooms);
+  showToast(`Cancelled. Notification sent to ${b.email} 📧`);
+}
+
+// ════════════════════════════════════════
+// ADMIN
+// ════════════════════════════════════════
+function renderAdmin() {
+  const today = new Date().toISOString().split('T')[0];
+  const tb = bookings.filter(b => b.date===today);
+  const ar = rooms.filter(r => r.active);
+  document.getElementById('statRooms').textContent    = rooms.length;
+  document.getElementById('statBookings').textContent  = tb.length;
+  document.getElementById('statOccupancy').textContent = Math.round((tb.length/(ar.length*4||1))*100)+'%';
+  document.getElementById('statActive').textContent   = ar.length;
+
+  document.getElementById('adminRoomList').innerHTML = rooms.map(r => `
+    <div class="admin-room-item">
+      <div class="room-dot ${r.active?'':'inactive'}"></div>
+      <div class="admin-room-info"><strong>${r.name}</strong><small>${r.floor||'No location set'} · Cap ${r.capacity}</small></div>
+      <div style="display:flex;gap:6px">
+        <button class="btn-admin-action" onclick="toggleRoom(${r.id})">${r.active?'Deactivate':'Activate'}</button>
+        <button class="btn-admin-action" style="color:var(--red);border-color:var(--red)" onclick="deleteRoom(${r.id})">Delete</button>
+      </div>
+    </div>`).join('');
+
+  initWorkingHoursUI();
+
+  const M = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  document.getElementById('adminBookingsTable').innerHTML = bookings.length
+    ? bookings.map(b => { const d=new Date(b.date+'T00:00:00'); return `
+      <tr>
+        <td><strong>${b.roomName}</strong></td>
+        <td>${b.name}</td>
+        <td>${d.getDate()} ${M[d.getMonth()]} ${d.getFullYear()}</td>
+        <td>${b.time}</td>
+        <td>${b.duration} min</td>
+        <td>${b.subject||'—'}</td>
+        <td>${b.invitees?.length?b.invitees.join(', '):'—'}</td>
+        <td><button class="btn-admin-action" style="color:var(--red);border-color:var(--red)" onclick="adminCancelBooking(${b.id})">Cancel</button></td>
+      </tr>`; }).join('')
+    : `<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px">No bookings yet.</td></tr>`;
+}
+
+function toggleRoom(id) {
+  const r = rooms.find(x => x.id===id);
+  r.active = !r.active;
+  renderAdmin(); renderRooms(rooms);
+  showToast(`${r.name} ${r.active?'activated':'deactivated'}`);
+}
+
+function deleteRoom(id) {
+  const r = rooms.find(x => x.id===id);
+  if (!confirm(`Delete "${r.name}"? All its bookings will also be removed.`)) return;
+  rooms   = rooms.filter(x => x.id!==id);
+  bookings= bookings.filter(b => b.roomId!==id);
+  renderAdmin(); renderRooms(rooms);
+  showToast(`"${r.name}" deleted`, 'info');
+}
+
+function adminCancelBooking(id) {
+  bookings = bookings.filter(x => x.id!==id);
+  renderAdmin(); renderRooms(rooms);
+  showToast('Booking removed by admin', 'info');
+}
+
+function addRoom() {
+  const name     = document.getElementById('newRoomName').value.trim();
+  const floor    = document.getElementById('newRoomFloor').value.trim();
+  const capacity = parseInt(document.getElementById('newRoomCapacity').value);
+  const status   = document.getElementById('newRoomStatus').value;
+  const raw      = document.getElementById('newRoomAmenities').value;
+  const amenities= raw.split(',').map(s=>s.trim()).filter(Boolean);
+  if (!name) { showToast('Please fill in the room name', 'error'); return; }
+  rooms.push({ id: Date.now(), name, floor, capacity, amenities: amenities.length?amenities:['Basic Setup'], active: status==='available' });
+  document.getElementById('addRoomModal').classList.remove('open');
+  ['newRoomName','newRoomFloor','newRoomAmenities'].forEach(id => document.getElementById(id).value='');
+  renderAdmin(); renderRooms(rooms);
+  showToast(`"${name}" added successfully!`);
+}
+
+// ════════════════════════════════════════
+// WORKING HOURS
+// ════════════════════════════════════════
+function buildTimeOptions() {
+  const t=[];
+  for(let h=0;h<24;h++) for(let m=0;m<60;m+=30) t.push(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`);
+  return t;
+}
+function initWorkingHoursUI() {
+  const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  document.getElementById('dayToggles').innerHTML = days.map(d =>
+    `<button class="day-btn ${workingDays[d]?'on':''}" onclick="toggleDay('${d}',this)">${d}</button>`
+  ).join('');
+  const times = buildTimeOptions();
+  ['settingStartTime','settingEndTime'].forEach(id => {
+    const sel = document.getElementById(id);
+    sel.innerHTML = times.map(t=>`<option value="${t}" ${t===(id==='settingStartTime'?workingHours.start:workingHours.end)?'selected':''}>${t}</option>`).join('');
+  });
+  updateSettingsPreview();
+}
+function toggleDay(day, btn) {
+  workingDays[day]=!workingDays[day];
+  btn.classList.toggle('on',workingDays[day]);
+  updateSettingsPreview();
+  showToast(`${day} ${workingDays[day]?'enabled':'disabled'}`, 'info');
+}
+function saveWorkingHours() {
+  workingHours.start = document.getElementById('settingStartTime').value;
+  workingHours.end   = document.getElementById('settingEndTime').value;
+  if (workingHours.start >= workingHours.end) { showToast('Opening time must be before closing time','error'); return; }
+  updateSettingsPreview();
+  showToast('Working hours saved ✓');
+}
+function updateSettingsPreview() {
+  const active = Object.entries(workingDays).filter(([,v])=>v).map(([k])=>k);
+  const p = document.getElementById('settingsPreview');
+  if (!p) return;
+  p.innerHTML = active.length===0
+    ? '⚠️ No working days selected — rooms will be unavailable.'
+    : `Rooms bookable <strong>${active.join(', ')}</strong> · <strong>${workingHours.start}</strong> to <strong>${workingHours.end}</strong>.`;
+}
+
+// ════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════
+document.getElementById('filterDate').value = new Date().toISOString().split('T')[0];
+renderRooms(rooms);
+</script>
+</body>
+</html>
