@@ -604,9 +604,9 @@ function togglePw() {
 if (isAdminLoggedIn) document.getElementById('logoutBtn').style.display = 'inline-block';
 
 // ════════════════════════════════════════
-// DATA
+// PERSISTENCE — localStorage
 // ════════════════════════════════════════
-let rooms = [
+const DEFAULT_ROOMS = [
   { id: 1, name: 'The Boardroom',    floor: '5th Floor · East Wing',  capacity: 20, amenities: ['Projector','Video Call','Whiteboard','Coffee Station'], active: true  },
   { id: 2, name: 'Focus Pod A',      floor: '2nd Floor · Quiet Zone', capacity: 4,  amenities: ['Monitor','Whiteboard'], active: true },
   { id: 3, name: 'Innovation Lab',   floor: '3rd Floor · North Wing', capacity: 12, amenities: ['Dual Projectors','Whiteboard','Video Call','Standing Desks'], active: true },
@@ -614,12 +614,46 @@ let rooms = [
   { id: 5, name: 'Huddle Room B',    floor: '2nd Floor · West Wing',  capacity: 6,  amenities: ['Smart TV','Video Call'], active: true },
   { id: 6, name: 'Executive Lounge', floor: '5th Floor · Private',    capacity: 8,  amenities: ['Projector','Coffee Machine','Video Call','Premium Seating'], active: false },
 ];
-
-let bookings = [
+const DEFAULT_BOOKINGS = [
   { id: 1, roomId: 1, roomName: 'The Boardroom',  name: 'Ahmed Al-Rashid', email: 'ahmed@company.com', date: getFutureDate(1), time: '10:00', duration: 60,  subject: 'Q3 Strategy Review',    notes: '',                       attendees: 12, invitees: [] },
   { id: 2, roomId: 3, roomName: 'Innovation Lab', name: 'Sara Mohammed',   email: 'sara@company.com',  date: getFutureDate(2), time: '14:00', duration: 90,  subject: 'Product Design Sprint', notes: 'Please bring sketch pads', attendees: 8,  invitees: ['design@company.com'] },
   { id: 3, roomId: 2, roomName: 'Focus Pod A',    name: 'Khalid Ibrahim',  email: 'khalid@company.com',date: getPastDate(1),   time: '09:00', duration: 30,  subject: '1-on-1 Check-in',       notes: '',                       attendees: 2,  invitees: [] },
 ];
+
+function loadData() {
+  try {
+    const r = localStorage.getItem('rs_rooms');
+    const b = localStorage.getItem('rs_bookings');
+    const d = localStorage.getItem('rs_workingDays');
+    const h = localStorage.getItem('rs_workingHours');
+    const id= localStorage.getItem('rs_nextBookingId');
+    rooms          = r  ? JSON.parse(r) : DEFAULT_ROOMS;
+    bookings       = b  ? JSON.parse(b) : DEFAULT_BOOKINGS;
+    workingDays    = d  ? JSON.parse(d) : { Sun: false, Mon: true, Tue: true, Wed: true, Thu: true, Fri: true, Sat: false };
+    workingHours   = h  ? JSON.parse(h) : { start: '08:00', end: '18:00' };
+    nextBookingId  = id ? parseInt(id)  : 10;
+  } catch(e) {
+    rooms = DEFAULT_ROOMS; bookings = DEFAULT_BOOKINGS;
+    workingDays = { Sun: false, Mon: true, Tue: true, Wed: true, Thu: true, Fri: true, Sat: false };
+    workingHours = { start: '08:00', end: '18:00' };
+    nextBookingId = 10;
+  }
+}
+
+function saveData() {
+  try {
+    localStorage.setItem('rs_rooms',         JSON.stringify(rooms));
+    localStorage.setItem('rs_bookings',      JSON.stringify(bookings));
+    localStorage.setItem('rs_workingDays',   JSON.stringify(workingDays));
+    localStorage.setItem('rs_workingHours',  JSON.stringify(workingHours));
+    localStorage.setItem('rs_nextBookingId', String(nextBookingId));
+  } catch(e) { console.warn('localStorage save failed', e); }
+}
+
+// ════════════════════════════════════════
+// DATA
+// ════════════════════════════════════════
+let rooms, bookings, workingDays, workingHours;
 
 let pendingRoomId = null;
 let pendingCancelId = null;
@@ -627,10 +661,8 @@ let nextBookingId = 10;
 let invitees = [];
 
 // ════════════════════════════════════════
-// WORKING HOURS
+// WORKING HOURS (declared via loadData above)
 // ════════════════════════════════════════
-let workingDays  = { Sun: false, Mon: true, Tue: true, Wed: true, Thu: true, Fri: true, Sat: false };
-let workingHours = { start: '08:00', end: '18:00' };
 
 // ════════════════════════════════════════
 // HELPERS
@@ -802,6 +834,7 @@ function confirmBooking() {
 
   const room = rooms.find(r => r.id === pendingRoomId);
   bookings.push({ id: nextBookingId++, roomId: pendingRoomId, roomName: room.name, name, email, date, time, duration, subject, notes, attendees: parseInt(attendees), invitees: [...invitees] });
+  saveData();
 
   closeModal();
   renderRooms(rooms);
@@ -918,6 +951,7 @@ function promptCancelBooking(id) {
 function executeCancelBooking() {
   const b = bookings.find(x => x.id===pendingCancelId);
   bookings = bookings.filter(x => x.id!==pendingCancelId);
+  saveData();
   document.getElementById('cancelModal').classList.remove('open');
   renderBookingList('all');
   renderRooms(rooms);
@@ -1003,7 +1037,8 @@ function renderAdmin() {
 function toggleRoom(id) {
   const r = rooms.find(x => x.id===id);
   r.active = !r.active;
-  renderAdmin(); renderRooms(rooms);
+  saveData();
+  renderAdmin(); renderRooms(rooms); renderHomeExtras();
   showToast(`${r.name} ${r.active?'activated':'deactivated'}`);
 }
 
@@ -1012,12 +1047,14 @@ function deleteRoom(id) {
   if (!confirm(`Delete "${r.name}"? All its bookings will also be removed.`)) return;
   rooms   = rooms.filter(x => x.id!==id);
   bookings= bookings.filter(b => b.roomId!==id);
-  renderAdmin(); renderRooms(rooms);
+  saveData();
+  renderAdmin(); renderRooms(rooms); renderHomeExtras();
   showToast(`"${r.name}" deleted`, 'info');
 }
 
 function adminCancelBooking(id) {
   bookings = bookings.filter(x => x.id!==id);
+  saveData();
   renderAdmin(); renderRooms(rooms); renderHomeExtras();
   showToast('Booking removed by admin', 'info');
 }
@@ -1031,9 +1068,10 @@ function addRoom() {
   const amenities= raw.split(',').map(s=>s.trim()).filter(Boolean);
   if (!name) { showToast('Please fill in the room name', 'error'); return; }
   rooms.push({ id: Date.now(), name, floor, capacity, amenities: amenities.length?amenities:['Basic Setup'], active: status==='available' });
+  saveData();
   document.getElementById('addRoomModal').classList.remove('open');
   ['newRoomName','newRoomFloor','newRoomAmenities'].forEach(id => document.getElementById(id).value='');
-  renderAdmin(); renderRooms(rooms);
+  renderAdmin(); renderRooms(rooms); renderHomeExtras();
   showToast(`"${name}" added successfully!`);
 }
 
@@ -1060,6 +1098,7 @@ function initWorkingHoursUI() {
 function toggleDay(day, btn) {
   workingDays[day]=!workingDays[day];
   btn.classList.toggle('on',workingDays[day]);
+  saveData();
   updateSettingsPreview();
   showToast(`${day} ${workingDays[day]?'enabled':'disabled'}`, 'info');
 }
@@ -1067,6 +1106,7 @@ function saveWorkingHours() {
   workingHours.start = document.getElementById('settingStartTime').value;
   workingHours.end   = document.getElementById('settingEndTime').value;
   if (workingHours.start >= workingHours.end) { showToast('Opening time must be before closing time','error'); return; }
+  saveData();
   updateSettingsPreview();
   showToast('Working hours saved ✓');
 }
@@ -1208,6 +1248,7 @@ function renderHomeExtras() { renderOccupancy(); renderTopUsers(); }
 // ════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════
+loadData();
 document.getElementById('filterDate').value = new Date().toISOString().split('T')[0];
 renderRooms(rooms);
 renderHomeExtras();
