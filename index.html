@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
- <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-<script>emailjs.init('fMs7HnU2rKL5w8Isz');</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RoomSync — Meeting Room Booking</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script>emailjs.init('fMs7HnU2rKL5w8Isz');</script>
 <style>
   :root {
     --ink: #0f1117;
@@ -190,6 +190,56 @@
   .invite-tag button { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 0.9rem; line-height: 1; padding: 0; opacity: 0.7; }
   .invite-tag button:hover { opacity: 1; }
   #inviteInput { border: none; outline: none; font-family: 'DM Sans', sans-serif; font-size: 0.88rem; color: var(--ink); flex: 1; min-width: 180px; background: transparent; padding: 4px 2px; }
+  /* ─── LIVE OCCUPANCY ─── */
+  .occupancy-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin-bottom: 48px; }
+  .occ-card { background: white; border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 10px; }
+  .occ-card-top { display: flex; justify-content: space-between; align-items: flex-start; }
+  .occ-room-name { font-family: 'DM Serif Display', serif; font-size: 1.05rem; }
+  .occ-room-floor { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+  .occ-live-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--green); flex-shrink: 0; margin-top: 5px; animation: pulse 1.8s infinite; }
+  .occ-live-dot.idle { background: var(--border); animation: none; }
+  @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(45,106,79,0.4)} 50%{box-shadow:0 0 0 6px rgba(45,106,79,0)} }
+  .occ-user { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 10px; background: var(--cream); }
+  .occ-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--ink); color: var(--paper); font-size: 0.75rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .occ-user-info { flex: 1; min-width: 0; }
+  .occ-user-name { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .occ-user-detail { font-size: 0.72rem; color: var(--muted); }
+  .occ-empty { font-size: 0.82rem; color: var(--muted); font-style: italic; padding: 4px 0; }
+  .occ-bar-wrap { background: var(--cream); border-radius: 6px; height: 6px; overflow: hidden; }
+  .occ-bar { height: 100%; border-radius: 6px; background: var(--green); transition: width 0.6s ease; }
+  .occ-bar.busy { background: var(--accent); }
+
+  /* ─── TOP USERS ─── */
+  .top-users-wrap { display: grid; grid-template-columns: 1fr 340px; gap: 24px; margin-bottom: 56px; align-items: start; }
+  @media (max-width: 900px) { .top-users-wrap { grid-template-columns: 1fr; } }
+  .top-users-list { display: flex; flex-direction: column; gap: 10px; }
+  .top-user-row { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; display: flex; align-items: center; gap: 14px; box-shadow: var(--shadow); }
+  .top-user-rank { font-family: 'DM Serif Display', serif; font-size: 1.4rem; color: var(--border); width: 28px; text-align: center; flex-shrink: 0; }
+  .top-user-rank.gold   { color: #c9a227; }
+  .top-user-rank.silver { color: #8e8e8e; }
+  .top-user-rank.bronze { color: #a0522d; }
+  .top-user-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--ink); color: var(--paper); font-size: 0.85rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .top-user-info { flex: 1; min-width: 0; }
+  .top-user-name { font-weight: 600; font-size: 0.92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .top-user-email { font-size: 0.75rem; color: var(--muted); }
+  .top-user-right { text-align: right; flex-shrink: 0; }
+  .top-user-pct { font-family: 'DM Serif Display', serif; font-size: 1.3rem; color: var(--accent); }
+  .top-user-count { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+  .top-user-bar-wrap { background: var(--cream); border-radius: 6px; height: 5px; margin-top: 8px; overflow: hidden; }
+  .top-user-bar { height: 100%; border-radius: 6px; background: var(--accent); transition: width 0.7s ease; }
+  .top-users-donut { background: white; border: 1px solid var(--border); border-radius: 14px; padding: 24px; box-shadow: var(--shadow); display: flex; flex-direction: column; align-items: center; }
+  .top-users-donut h4 { font-family: 'DM Serif Display', serif; font-size: 1rem; margin-bottom: 16px; align-self: flex-start; }
+  .donut-svg-wrap { position: relative; width: 180px; height: 180px; margin-bottom: 16px; }
+  .donut-svg-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .donut-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .donut-center-num { font-family: 'DM Serif Display', serif; font-size: 1.8rem; color: var(--ink); }
+  .donut-center-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+  .donut-legend { width: 100%; display: flex; flex-direction: column; gap: 7px; }
+  .donut-legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; }
+  .donut-legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .donut-legend-name { flex: 1; color: var(--muted); }
+  .donut-legend-pct { font-weight: 600; color: var(--ink); }
+
 </style>
 </head>
 <body>
@@ -419,6 +469,17 @@
     </div>
     <div class="section-title">All Rooms</div>
     <div class="rooms-grid" id="roomsGrid"></div>
+
+    <!-- LIVE OCCUPANCY -->
+    <div class="section-title" style="margin-top:8px">Live Occupancy</div>
+    <div class="occupancy-grid" id="occupancyGrid"></div>
+
+    <!-- TOP USERS -->
+    <div class="section-title" style="margin-top:40px">Top Room Users</div>
+    <div class="top-users-wrap">
+      <div class="top-users-list" id="topUsersList"></div>
+      <div class="top-users-donut" id="topUsersDonut"></div>
+    </div>
   </div>
 
   <!-- MY BOOKINGS PAGE -->
@@ -743,32 +804,47 @@ function confirmBooking() {
   bookings.push({ id: nextBookingId++, roomId: pendingRoomId, roomName: room.name, name, email, date, time, duration, subject, notes, attendees: parseInt(attendees), invitees: [...invitees] });
 
   closeModal();
-  const inv = invitees.length ? ` + ${invitees.length} invite${invitees.length>1?'s':''} sent 📨` : '';
-  emailjs.send('YOUR_SERVICE_ID', 'YOUR_TEMPLATE_ID', {
-  booker_name: name,
-  booker_email: email,
-  room_name: room.name,
-  date: date,
-  time: time,
-  duration: duration,
-  attendees: attendees,
-  subject: subject || '(No subject)',
-}).then(() => {
-  showToast(`Booking confirmed! Email sent to ${email} 📧`);
-});
-
-// Send to each invitee too
-invitees.forEach(invEmail => {
-  emailjs.send('service_vebob44', 'template_4dd4zxf', {
-    invitee_email: invEmail,
-    booker_name: name,
-    room_name: room.name,
-    date: date,
-    time: time,
-  });
-});
   renderRooms(rooms);
+  renderHomeExtras();
   ['bookingName','bookingEmail','bookingSubject','bookingNotes'].forEach(id => document.getElementById(id).value = '');
+
+  // ── Send confirmation email to booker ──
+  const eTime = endTime(time, duration);
+  emailjs.send('service_vebob44', 'template_4dd4zxf', {
+    to_email:   email,
+    to_name:    name,
+    room_name:  room.name,
+    date:       date,
+    time:       time,
+    end_time:   eTime,
+    duration:   duration + ' mins',
+    subject:    subject || '(No subject)',
+    attendees:  attendees,
+    type:       'Booking Confirmed ✅',
+    notes:      notes || '—',
+  }).then(() => {
+    const inv = invitees.length ? ` + ${invitees.length} invite${invitees.length>1?'s':''} sent 📨` : '';
+    showToast(`Booking confirmed! Email sent to ${email} 📧${inv}`);
+  }).catch(() => {
+    showToast('Booked! (Email delivery failed — check EmailJS config)', 'error');
+  });
+
+  // ── Send invite emails to each invitee ──
+  invitees.forEach(invEmail => {
+    emailjs.send('service_vebob44', 'template_4dd4zxf', {
+      to_email:   invEmail,
+      to_name:    invEmail.split('@')[0],
+      room_name:  room.name,
+      date:       date,
+      time:       time,
+      end_time:   eTime,
+      duration:   duration + ' mins',
+      subject:    subject || '(No subject)',
+      attendees:  attendees,
+      type:       `You've Been Invited 📅 (by ${name})`,
+      notes:      notes || '—',
+    });
+  });
 }
 
 // ════════════════════════════════════════
@@ -845,7 +921,43 @@ function executeCancelBooking() {
   document.getElementById('cancelModal').classList.remove('open');
   renderBookingList('all');
   renderRooms(rooms);
-  showToast(`Cancelled. Notification sent to ${b.email} 📧`);
+  renderHomeExtras();
+
+  // ── Send cancellation email to booker ──
+  emailjs.send('service_vebob44', 'template_4dd4zxf', {
+    to_email:   b.email,
+    to_name:    b.name,
+    room_name:  b.roomName,
+    date:       b.date,
+    time:       b.time,
+    end_time:   endTime(b.time, b.duration),
+    duration:   b.duration + ' mins',
+    subject:    b.subject || '(No subject)',
+    attendees:  b.attendees,
+    type:       'Booking Cancelled ❌',
+    notes:      b.notes || '—',
+  }).then(() => {
+    showToast(`Cancelled. Notification sent to ${b.email} 📧`);
+  }).catch(() => {
+    showToast('Booking cancelled (email delivery failed)', 'error');
+  });
+
+  // ── Notify invitees of cancellation too ──
+  (b.invitees || []).forEach(invEmail => {
+    emailjs.send('service_vebob44', 'template_4dd4zxf', {
+      to_email:   invEmail,
+      to_name:    invEmail.split('@')[0],
+      room_name:  b.roomName,
+      date:       b.date,
+      time:       b.time,
+      end_time:   endTime(b.time, b.duration),
+      duration:   b.duration + ' mins',
+      subject:    b.subject || '(No subject)',
+      attendees:  b.attendees,
+      type:       `Meeting Cancelled ❌ (by ${b.name})`,
+      notes:      '—',
+    });
+  });
 }
 
 // ════════════════════════════════════════
@@ -906,7 +1018,7 @@ function deleteRoom(id) {
 
 function adminCancelBooking(id) {
   bookings = bookings.filter(x => x.id!==id);
-  renderAdmin(); renderRooms(rooms);
+  renderAdmin(); renderRooms(rooms); renderHomeExtras();
   showToast('Booking removed by admin', 'info');
 }
 
@@ -968,10 +1080,139 @@ function updateSettingsPreview() {
 }
 
 // ════════════════════════════════════════
+// LIVE OCCUPANCY
+// ════════════════════════════════════════
+const AVATAR_COLORS = ['#0f1117','#c8522a','#2d6a4f','#5c4a8f','#1a6b8a','#8a4a1a','#3a5f3a'];
+function initials(name) { return name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2); }
+function avatarColor(name) { let h=0; for(let c of name) h=(h*31+c.charCodeAt(0))%AVATAR_COLORS.length; return AVATAR_COLORS[h]; }
+
+function renderOccupancy() {
+  const now    = new Date();
+  const today  = now.toISOString().split('T')[0];
+  const nowMin = now.getHours()*60 + now.getMinutes();
+  const grid   = document.getElementById('occupancyGrid');
+  const active = rooms.filter(r => r.active);
+
+  grid.innerHTML = active.map(r => {
+    const current = bookings.filter(b => {
+      if (b.roomId !== r.id || b.date !== today) return false;
+      const [bh,bm] = b.time.split(':').map(Number);
+      const bStart  = bh*60+bm;
+      return nowMin >= bStart && nowMin < bStart + b.duration;
+    });
+    const isOccupied = current.length > 0;
+    const b = current[0];
+    const pct = isOccupied ? (() => {
+      const [bh,bm]=b.time.split(':').map(Number);
+      return Math.min(100, Math.round(((nowMin - bh*60-bm) / b.duration)*100));
+    })() : 0;
+    return `
+    <div class="occ-card">
+      <div class="occ-card-top">
+        <div><div class="occ-room-name">${r.name}</div><div class="occ-room-floor">${r.floor||'No location'}</div></div>
+        <div class="occ-live-dot ${isOccupied?'':'idle'}" title="${isOccupied?'In use':'Free'}"></div>
+      </div>
+      ${isOccupied ? `
+        <div class="occ-user">
+          <div class="occ-avatar" style="background:${avatarColor(b.name)}">${initials(b.name)}</div>
+          <div class="occ-user-info">
+            <div class="occ-user-name">${b.name}</div>
+            <div class="occ-user-detail">${b.time} – ${endTime(b.time,b.duration)} · ${b.subject||'Meeting'}</div>
+          </div>
+        </div>
+        <div class="occ-bar-wrap"><div class="occ-bar busy" style="width:${pct}%"></div></div>
+        <div style="font-size:0.72rem;color:var(--muted);text-align:right;margin-top:-4px">${pct}% through session</div>
+      ` : `
+        <div class="occ-empty">🟢 Room is free right now</div>
+        <div class="occ-bar-wrap"><div class="occ-bar" style="width:0%"></div></div>
+      `}
+    </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════
+// TOP USERS
+// ════════════════════════════════════════
+const DONUT_COLORS = ['#c8522a','#0f1117','#2d6a4f','#5c4a8f','#1a6b8a','#d4834a','#8e8e8e'];
+
+function renderTopUsers() {
+  const tally = {};
+  bookings.forEach(b => {
+    if (!tally[b.email]) tally[b.email] = { name: b.name, email: b.email, count: 0, mins: 0 };
+    tally[b.email].count++;
+    tally[b.email].mins += b.duration;
+  });
+  const sorted   = Object.values(tally).sort((a,b) => b.mins - a.mins);
+  const totalMins= sorted.reduce((s,u) => s+u.mins, 0) || 1;
+  const top      = sorted.slice(0, 7);
+  const rankMedal= i => ['🥇','🥈','🥉'][i] || String(i+1);
+  const rankCls  = i => i===0?'gold':i===1?'silver':i===2?'bronze':'';
+
+  document.getElementById('topUsersList').innerHTML = top.length === 0
+    ? `<div class="empty-state"><div class="empty-icon">📊</div><p>No bookings yet to rank.</p></div>`
+    : top.map((u,i) => {
+        const pct = Math.round((u.mins/totalMins)*100);
+        const hrs = (u.mins/60).toFixed(1);
+        return `
+        <div class="top-user-row">
+          <div class="top-user-rank ${rankCls(i)}">${rankMedal(i)}</div>
+          <div class="top-user-avatar" style="background:${DONUT_COLORS[i%DONUT_COLORS.length]}">${initials(u.name)}</div>
+          <div class="top-user-info">
+            <div class="top-user-name">${u.name}</div>
+            <div class="top-user-email">${u.email}</div>
+            <div class="top-user-bar-wrap"><div class="top-user-bar" style="width:${pct}%"></div></div>
+          </div>
+          <div class="top-user-right">
+            <div class="top-user-pct">${pct}%</div>
+            <div class="top-user-count">${u.count} booking${u.count!==1?'s':''} · ${hrs}h</div>
+          </div>
+        </div>`;
+      }).join('');
+
+  // Donut chart
+  const R = 70, cx = 90, cy = 90, circ = 2*Math.PI*R;
+  let offset = 0;
+  const segments = top.map((u,i) => {
+    const dash = (u.mins/totalMins)*circ;
+    const seg  = `<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="${DONUT_COLORS[i%DONUT_COLORS.length]}" stroke-width="26" stroke-dasharray="${dash} ${circ-dash}" stroke-dashoffset="${-offset}" />`;
+    offset += dash; return seg;
+  }).join('');
+  const others    = sorted.slice(7);
+  const otherMins = others.reduce((s,u)=>s+u.mins, 0);
+  const otherSeg  = otherMins > 0 ? (() => {
+    const dash = (otherMins/totalMins)*circ;
+    return `<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#d8d3c8" stroke-width="26" stroke-dasharray="${dash} ${circ-dash}" stroke-dashoffset="${-offset}" />`;
+  })() : '';
+  const legend = top.map((u,i) => {
+    const pct = Math.round((u.mins/totalMins)*100);
+    return `<div class="donut-legend-item"><div class="donut-legend-dot" style="background:${DONUT_COLORS[i%DONUT_COLORS.length]}"></div><span class="donut-legend-name">${u.name.split(' ')[0]}</span><span class="donut-legend-pct">${pct}%</span></div>`;
+  }).join('') + (otherMins>0 ? `<div class="donut-legend-item"><div class="donut-legend-dot" style="background:#d8d3c8"></div><span class="donut-legend-name">Others</span><span class="donut-legend-pct">${Math.round((otherMins/totalMins)*100)}%</span></div>` : '');
+
+  document.getElementById('topUsersDonut').innerHTML = `
+    <h4>Booking Share</h4>
+    <div class="donut-svg-wrap">
+      <svg viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="var(--cream)" stroke-width="26"/>
+        ${segments}${otherSeg}
+      </svg>
+      <div class="donut-center">
+        <div class="donut-center-num">${sorted.length}</div>
+        <div class="donut-center-label">Users</div>
+      </div>
+    </div>
+    <div class="donut-legend">${legend}</div>`;
+}
+
+function renderHomeExtras() { renderOccupancy(); renderTopUsers(); }
+
+// ════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════
 document.getElementById('filterDate').value = new Date().toISOString().split('T')[0];
 renderRooms(rooms);
+renderHomeExtras();
+// Refresh occupancy every 60 seconds
+setInterval(renderOccupancy, 60000);
 </script>
 </body>
 </html>
